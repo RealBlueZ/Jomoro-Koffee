@@ -67,7 +67,7 @@
     
   for JWT_SECRET you can use your own or mine "JomoroKoffeeTransactionService"
 
-  NOTE: if you use your own key, then you must change every file that needs the JWT_SECRET. It will validate either the env or my own key.
+  NOTE: if you use your own key, then you must change every file that needs the JWT_SECRET. It you don't change it, it will validate either the env or my own key.
 
   ## 6. Prisma
 
