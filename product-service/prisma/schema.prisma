@@ -1,0 +1,34 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model Category {
+  id       Int       @id @default(autoincrement())
+  name     String    @db.VarChar(255)
+  products Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(255)
+  description String   @db.VarChar(255)
+  price       Float    // Menggunakan Float/Double untuk mencocokkan tipe DOUBLE di soal
+  stock       Int
+  image_url   String?  @db.VarChar(255) // Nullable
+  category_id Int
+  category    Category @relation(fields: [category_id], references: [id], onDelete: Cascade)
+
+  @@map("products")
+}
