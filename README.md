@@ -6,7 +6,6 @@
   
     npm install @prisma/client
     npm install -D prisma
-    npx prisma init --datasource-provider mysql
     npm install @nestjs/passport passport passport-jwt @nestjs/jwt
     npm install -D @types/passport-jwt
     npm install class-validator class-transformer
@@ -19,7 +18,6 @@
   
     npm install @prisma/client
     npm install -D prisma
-    npx prisma init --datasource-provider mysql
     npm install mysql2 @prisma/adapter-mariadb
     npm install class-validator class-transformer @nestjs/swagger
     npm install @nestjs/axios axios
