@@ -1,8 +1,14 @@
 import { Module } from '@nestjs/common';
 import { TransactionService } from './transaction.service';
 import { TransactionController } from './transaction.controller';
+import { JwtModule } from '@nestjs/jwt';
 
 @Module({
+  imports: [
+    JwtModule.register({
+      secret: process.env.JWT_SECRET || 'JomoroKoffeeTransactionService',
+    })
+  ],
   controllers: [TransactionController],
   providers: [TransactionService],
 })
