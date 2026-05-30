@@ -2,6 +2,7 @@ import { Controller, Get, Post, Delete, Body, Param, ParseIntPipe } from '@nestj
 import { TransactionService } from './transaction.service';
 import { AddToCartDto } from './dto/add-to-cart.dto';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { CheckoutDto } from './dto/checkout.dto';
 
 @ApiTags('Cart & Transactions')
 @Controller('cart')
@@ -24,5 +25,17 @@ export class TransactionController {
   @ApiOperation({ summary: 'Remove an item from cart by CartItem ID' })
   removeItem(@Param('itemId', ParseIntPipe) itemId: number) {
     return this.transactionService.removeCartItem(itemId);
+  }
+
+  @Post('checkout')
+  @ApiOperation({ summary: 'Checkout active cart to create an official order' })
+  checkout(@Body() checkoutDto: CheckoutDto) {
+    return this.transactionService.checkout(checkoutDto);
+  }
+
+  @Get('history/:userId')
+  @ApiOperation({ summary: 'Get order history by User ID' })
+  getOrderHistory(@Param('userId', ParseIntPipe) userId: number) {
+    return this.transactionService.getOrderHistory(userId);
   }
 }
