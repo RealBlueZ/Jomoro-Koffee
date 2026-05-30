@@ -1,14 +1,16 @@
-import { Controller, Get, Post, Delete, Body, Param, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { TransactionService } from './transaction.service';
 import { AddToCartDto } from './dto/add-to-cart.dto';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { CheckoutDto } from './dto/checkout.dto';
+import { AuthGuard } from '../auth/auth.guard';
 
 @ApiTags('Cart & Transactions')
 @Controller('cart')
+@UseGuards(AuthGuard)
 export class TransactionController {
   constructor(private readonly transactionService: TransactionService) {}
-
+  
   @Post('add')
   @ApiOperation({ summary: 'Add product coffee to cart' })
   addToCart(@Body() addToCartDto: AddToCartDto) {
