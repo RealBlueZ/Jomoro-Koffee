@@ -1,4 +1,4 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import { CanActivate, ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
 
@@ -15,14 +15,22 @@ export class AuthGuard implements CanActivate {
     }
 
     try {
-      // Pastikan secret key ini SAMA dengan yang ada di Auth Service Anda
       const payload = await this.jwtService.verifyAsync(token, {
-        secret: process.env.JWT_SECRET || 'JomoroKoffeeProductService',
+        secret: process.env.JWT_SECRET || 'JomoroKoffeeService',
       });
       
-      // Simpan data user hasil decode (id, role, dll) ke dalam objek request
+      // Simpan data user 
       request['user'] = payload;
-    } catch {
+
+      const path = request.url;
+      if(path.includes('/admin/')){
+        if(payload.role !== 'ADMIN'){
+          throw new ForbiddenException("Access Denied. Admin Only");
+        }
+      }
+
+    } catch (err) {
+      if(err instanceof ForbiddenException) throw err;
       throw new UnauthorizedException('Token tidak valid atau sudah kedaluwarsa.');
     }
     

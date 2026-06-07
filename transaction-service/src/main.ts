@@ -7,13 +7,16 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // 1. Aktifkan validasi global untuk DTO
-  app.useGlobalPipes(new ValidationPipe());
+  app.useGlobalPipes(new ValidationPipe({
+    transform: true,
+  }));
 
   // 2. Setup Swagger Documentation Khusus Transaksi
   const config = new DocumentBuilder()
     .setTitle('Jomoro Transaction Service')
     .setDescription('API Documentation for Jomoro Koffee Cart & Order Management')
     .setVersion('1.0')
+    .addBearerAuth()
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
