@@ -6,7 +6,7 @@ import { JwtModule } from '@nestjs/jwt';
 @Module({
   imports: [
     JwtModule.register({
-      secret: process.env.JWT_SECRET || 'JomoroKoffeeAuthService',
+      secret: process.env.JWT_SECRET || 'JomoroKoffeeService',
       signOptions: { expiresIn: '1d' },
     }),
   ],

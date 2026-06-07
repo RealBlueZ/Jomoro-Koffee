@@ -6,6 +6,7 @@ import { CheckoutDto } from './dto/checkout.dto';
 
 @Injectable()
 export class TransactionService implements OnModuleInit, OnModuleDestroy {
+  [x: string]: any;
   private prisma: PrismaClient;
 
   constructor() {
@@ -28,14 +29,22 @@ export class TransactionService implements OnModuleInit, OnModuleDestroy {
   async addToCart(addToCartDto: AddToCartDto) {
     const { user_id, product_id, quantity } = addToCartDto;
 
-    // 1. Cari atau buat Cart aktif untuk user tersebut (Upsert pattern)
+    const productResponse = await fetch(`http://localhost:3002/products/${product_id}`);
+    if (!productResponse.ok) {
+      throw new NotFoundException(`Produk dengan ID ${product_id} tidak ditemukan di Product Service.`);
+    }
+    const productData = await productResponse.json();
+
+    if (quantity > productData.stock) {
+      throw new BadRequestException(`Jumlah yang diminta (${quantity}) melebihi stok tersedia (${productData.stock}).`);
+    }
+
     const cart = await this.prisma.cart.upsert({
       where: { user_id },
       update: {},
       create: { user_id },
     });
 
-    // 2. Periksa apakah produk kopi tersebut sudah ada di dalam keranjang ini
     const existingItem = await this.prisma.cartItem.findFirst({
       where: {
         cart_id: cart.id,
@@ -44,104 +53,197 @@ export class TransactionService implements OnModuleInit, OnModuleDestroy {
     });
 
     if (existingItem) {
-      // Jika sudah ada, tambahkan jumlah quantity-nya
       return this.prisma.cartItem.update({
         where: { id: existingItem.id },
         data: { quantity: existingItem.quantity + quantity },
       });
     }
 
-    // Jika belum ada, buat baris item baru di tabel cart_items
-    return this.prisma.cartItem.create({
+    await this.prisma.cartItem.create({
       data: {
         cart_id: cart.id,
         product_id,
         quantity,
       },
     });
+
+    return { message: 'Item berhasil ditambahkan ke dalam keranjang.' };
   }
 
-  // Melihat isi keranjang milik user tertentu
+  async updateCartQuantity(userId: number, productId: number, quantity: number) {
+
+    if (!productId || isNaN(productId)) {
+      throw new BadRequestException('ID Produk yang dikirim harus berupa angka murni yang valid.');
+    }
+
+    const cart = await this.prisma.cart.findUnique({
+      where: { user_id: userId },
+    });
+
+    if (!cart) {
+      throw new NotFoundException(`Keranjang belanja untuk User ID ${userId} belum dibuat.`);
+    }
+
+    const cartItem = await this.prisma.cartItem.findFirst({
+      where: {
+        cart_id: cart.id,
+        product_id: productId,
+      },
+    });
+
+    if (!cartItem) {
+      throw new NotFoundException(`Produk ID ${productId} tidak ditemukan di dalam keranjang user ini.`);
+    }
+
+    const targetUrl = `http://localhost:3002/products/${productId}`;
+    const productResponse = await fetch(targetUrl);
+
+    if (!productResponse.ok) {
+      const errorData = await productResponse.json().catch(() => ({}));
+      throw new BadRequestException('Gagal melakukan sinkronisasi data produk dengan Product Service. Alasan ${errorData.message}');
+    }
+    const productData = await productResponse.json();
+
+    if (quantity > productData.stock) {
+      throw new BadRequestException(`Gagal memperbarui kuantitas. Batas maksimal stok yang tersedia: ${productData.stock}`);
+    }
+
+    await this.prisma.cartItem.update({
+      where: { id: cartItem.id },
+      data: { quantity: quantity },
+    });
+
+    return { message: 'Kuantitas produk di dalam keranjang berhasil diperbarui.' };
+  }
+
+  // Melihat isi keranjang milik user
   async getCart(userId: number) {
     const cart = await this.prisma.cart.findUnique({
       where: { user_id: userId },
       include: {
-        cart_items: true, // Angkut semua item kopi di dalamnya
+        cart_items: true,
       },
     });
 
-    if (!cart) {
+    if (!cart || cart.cart_items.length === 0) {
       throw new NotFoundException(`Cart for User ID ${userId} is empty or not found`);
     }
-    return cart;
+    const detailedItems = await Promise.all(
+      cart.cart_items.map(async (item) => {
+        try {
+          const res = await fetch(`http://localhost:3002/products/${item.product_id}`);
+          if (res.ok) {
+            const product = await res.json();
+            return {
+              product_id: item.product_id,
+              name: product.name,
+              price: product.price,
+              quantity: item.quantity,
+            };
+          }
+        } catch (e) {
+        }
+        return {
+          product_id: item.product_id,
+          name: 'Unknown Product',
+          price: 0,
+          quantity: item.quantity,
+        };
+      })
+    );
+
+    return {
+      cart_id: cart.id,
+      user_id: cart.user_id,
+      items: detailedItems,
+    };
   }
 
-  // Menghapus satu item dari keranjang belanja
-  async removeCartItem(itemId: number) {
-    const item = await this.prisma.cartItem.findUnique({ where: { id: itemId } });
+  // Menghapus satu item dari keranjang
+  async deleteCartItem(userId: number, productId: number) {
+    const cart = await this.prisma.cart.findUnique({ where: { user_id: userId } });
+    if (!cart) throw new NotFoundException('Keranjang tidak ditemukan.');
+
+    const item = await this.prisma.cartItem.findFirst({
+      where: { cart_id: cart.id, product_id: productId },
+    });
+
     if (!item) {
-      throw new NotFoundException(`Cart item with ID ${itemId} not found`);
+      throw new NotFoundException(`Produk dengan ID ${productId} tidak ada di keranjang.`);
     }
 
-    await this.prisma.cartItem.delete({ where: { id: itemId } });
-    return { message: `Item has been removed from cart.` };
+    await this.prisma.cartItem.delete({ where: { id: item.id } });
+    return { message: `Product successfully removed from cart.` };
   }
 
-  // Checkout item dari keranjang
+  // Membersihkan isi keranjang
+  async clearCart(userId: number) {
+    const cart = await this.prisma.cart.findUnique({ where: { user_id: userId } });
+    if (!cart) throw new NotFoundException('Keranjang tidak ditemukan.');
+
+    await this.prisma.cartItem.deleteMany({ where: { cart_id: cart.id } });
+    return { message: 'Semua item di dalam keranjang berhasil dibersihkan.' };
+  }
+
+  // Checkout item 
   async checkout(checkoutDto: CheckoutDto) {
     const { user_id } = checkoutDto;
 
-    // 1. Ambil data keranjang aktif beserta itemnya
     const cart = await this.prisma.cart.findUnique({
       where: { user_id },
       include: { cart_items: true },
     });
 
-    // Validasi jika keranjang tidak ditemukan atau kosong
     if (!cart || cart.cart_items.length === 0) {
-      throw new BadRequestException(`Cannot checkout. Cart is empty or does not exist for User ID ${user_id}`);
+      throw new BadRequestException(`Tidak dapat melakukan checkout. Keranjang belanja kosong.`);
     }
 
-    // 2. Jalankan ACID Transaction untuk menjamin konsistensi data
     return this.prisma.$transaction(async (tx) => {
-      
-      // A. Buat data induk Order baru
+
       const newOrder = await tx.order.create({
-        data: {
-          user_id: user_id,
-        },
+        data: { user_id: user_id },
       });
 
-      // B. Pindahkan setiap CartItem ke OrderDetail dengan snapshot harga
-      // (Di sini kita asumsikan harga dummy Rp 25000 untuk simulasi, idealnya fetch dari product-service)
-      const mockPrice = 25000; 
+      for (const item of cart.cart_items) {
+        const productRes = await fetch(`http://localhost:3002/products/${item.product_id}`);
+        if (!productRes.ok) {
+          throw new BadRequestException(`Produk ID ${item.product_id} tidak valid saat checkout.`);
+        }
+        const productData = await productRes.json();
 
-      const orderDetailsData = cart.cart_items.map((item) => ({
-        order_id: newOrder.id,
-        product_id: item.product_id,
-        quantity: item.quantity,
-        price: mockPrice, // Tipe data Float sesuai schema.prisma Anda
-      }));
+        await tx.orderDetail.create({
+          data: {
+            order_id: newOrder.id,
+            product_id: item.product_id,
+            quantity: item.quantity,
+            price: productData.price, 
+          },
+        });
 
-      // Masukkan massal (bulk insert) ke tabel order_details
-      await tx.orderDetail.createMany({
-        data: orderDetailsData,
-      });
+        const reduceRes = await fetch(`http://localhost:3002/admin/products/${item.product_id}/reduce`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ quantity: item.quantity }),
+        });
 
-      // C. Kosongkan semua item di keranjang belanja user
+        if (!reduceRes.ok) {
+          throw new BadRequestException(`Gagal memotong stok untuk produk ID ${item.product_id} di inventory.`);
+        }
+      }
+
+      // C. Kosongkan keranjang belanja
       await tx.cartItem.deleteMany({
         where: { cart_id: cart.id },
       });
 
-      // D. Kembalikan data Order utuh beserta detailnya untuk struk/nota
-      return tx.order.findUnique({
-        where: { id: newOrder.id },
-        include: { order_details: true },
-      });
+      return {
+        message: 'Checkout sukses dilakukan. Pesanan Anda berhasil diproses.',
+        order_id: newOrder.id,
+      };
     });
   }
 
-  // Tambahan opsi: Mengambil semua riwayat pesanan (Order) milik user
+  // History pesanan
   async getOrderHistory(userId: number) {
     return this.prisma.order.findMany({
       where: { user_id: userId },

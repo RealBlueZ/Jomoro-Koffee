@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit, OnModuleDestroy, NotFoundException } from '@nestjs/common';
+import { Injectable, OnModuleInit, OnModuleDestroy, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -6,6 +6,7 @@ import { UpdateProductDto } from './dto/update-product.dto';
 
 @Injectable()
 export class ProductService implements OnModuleInit, OnModuleDestroy {
+  [x: string]: any;
   private prisma: PrismaClient;
 
   constructor() {
@@ -59,6 +60,21 @@ export class ProductService implements OnModuleInit, OnModuleDestroy {
     return this.prisma.product.update({
       where: { id },
       data: updateProductDto,
+    });
+  }
+
+  async reduceStock(id: number, quantity: number){
+    const product = await this.findOne(id);
+
+    if(quantity > product.stock){
+      throw new BadRequestException("Stock insufficient. Available stock(s): ${product.stock}");
+    }
+
+    return this.prisma.product.update({
+      where: {id},
+      data: {
+        stock: product.stock - quantity,
+      }
     });
   }
 

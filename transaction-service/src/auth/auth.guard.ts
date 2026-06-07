@@ -17,7 +17,7 @@ export class AuthGuard implements CanActivate {
     try {
       // Pastikan secret key ini SAMA dengan yang ada di Auth Service Anda
       const payload = await this.jwtService.verifyAsync(token, {
-        secret: process.env.JWT_SECRET || 'JomoroKoffeeTransactionService',
+        secret: process.env.JWT_SECRET || 'JomoroKoffeeService',
       });
       
       // Simpan data user hasil decode (id, role, dll) ke dalam objek request
