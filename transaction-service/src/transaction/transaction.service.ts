@@ -186,7 +186,7 @@ export class TransactionService implements OnModuleInit, OnModuleDestroy {
   }
 
   // Checkout item 
-  async checkout(checkoutDto: CheckoutDto) {
+  async checkout(checkoutDto: CheckoutDto, token: string) {
     const { user_id } = checkoutDto;
 
     const cart = await this.prisma.cart.findUnique({
@@ -205,7 +205,9 @@ export class TransactionService implements OnModuleInit, OnModuleDestroy {
       });
 
       for (const item of cart.cart_items) {
-        const productRes = await fetch(`http://localhost:3002/products/${item.product_id}`);
+        const productRes = await fetch(`http://localhost:3002/products/${item.product_id}`, {
+          headers: token ? { 'Authorization': token } : {},
+        });
         if (!productRes.ok) {
           throw new BadRequestException(`Produk ID ${item.product_id} tidak valid saat checkout.`);
         }
@@ -222,7 +224,10 @@ export class TransactionService implements OnModuleInit, OnModuleDestroy {
 
         const reduceRes = await fetch(`http://localhost:3002/admin/products/${item.product_id}/reduce`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': token || ''
+          },
           body: JSON.stringify({ quantity: item.quantity }),
         });
 
@@ -243,6 +248,49 @@ export class TransactionService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
+  async getOrderDetail(orderId: number, token?: string) {
+    const orderDetails = await this.prisma.orderDetail.findMany({
+      where: { order_id: orderId },
+    });
+
+    if (!orderDetails || orderDetails.length === 0) {
+      throw new NotFoundException(`Detail pesanan dengan Order ID ${orderId} tidak ditemukan.`);
+    }
+
+    // Gabungkan data lokal transaksi dengan detail nama produk dari Product Service (Port 3002)
+    const detailedItems = await Promise.all(
+      orderDetails.map(async (item) => {
+        try {
+          const res = await fetch(`http://localhost:3002/products/${item.product_id}`, {
+            headers: token ? { 'Authorization': token } : {},
+          });
+          if (res.ok) {
+            const product = await res.json();
+            return {
+              product_id: item.product_id,
+              name: product.name,
+              quantity: item.quantity,
+              price: item.price, // Menggunakan snapshot harga saat pembelian
+            };
+          }
+        } catch (e) {
+          // Fallback jika Product Service mati / kendala jaringan
+        }
+        return {
+          product_id: item.product_id,
+          name: 'Unknown Product',
+          quantity: item.quantity,
+          price: item.price,
+        };
+      })
+    );
+
+    return {
+      order_id: orderId,
+      items: detailedItems,
+    };
+  }
+  
   // History pesanan
   async getOrderHistory(userId: number) {
     return this.prisma.order.findMany({
