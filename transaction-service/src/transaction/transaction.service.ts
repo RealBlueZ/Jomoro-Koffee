@@ -100,7 +100,7 @@ export class TransactionService implements OnModuleInit, OnModuleDestroy {
 
     if (!productResponse.ok) {
       const errorData = await productResponse.json().catch(() => ({}));
-      throw new BadRequestException(`Gagal melakukan sinkronisasi data produk dengan Product Service. Alasan ${errorData.message}`);
+      throw new BadRequestException('Gagal melakukan sinkronisasi data produk dengan Product Service. Alasan ${errorData.message}');
     }
     const productData = await productResponse.json();
 
@@ -161,9 +161,7 @@ export class TransactionService implements OnModuleInit, OnModuleDestroy {
 
   // Menghapus satu item dari keranjang
   async deleteCartItem(userId: number, productId: number) {
-    const cart = await this.prisma.cart.findUnique({ 
-      where: { user_id: userId } 
-    });
+    const cart = await this.prisma.cart.findUnique({ where: { user_id: userId } });
     if (!cart) throw new NotFoundException('Keranjang tidak ditemukan.');
 
     const item = await this.prisma.cartItem.findFirst({
@@ -188,7 +186,7 @@ export class TransactionService implements OnModuleInit, OnModuleDestroy {
   }
 
   // Checkout item 
-  async checkout(checkoutDto: CheckoutDto, token? : string) {
+  async checkout(checkoutDto: CheckoutDto) {
     const { user_id } = checkoutDto;
 
     const cart = await this.prisma.cart.findUnique({
@@ -207,9 +205,7 @@ export class TransactionService implements OnModuleInit, OnModuleDestroy {
       });
 
       for (const item of cart.cart_items) {
-        const productRes = await fetch(`http://localhost:3002/products/${item.product_id}`, {
-          headers: token ? { 'Authorization': token} : {},
-        });
+        const productRes = await fetch(`http://localhost:3002/products/${item.product_id}`);
         if (!productRes.ok) {
           throw new BadRequestException(`Produk ID ${item.product_id} tidak valid saat checkout.`);
         }
@@ -226,13 +222,12 @@ export class TransactionService implements OnModuleInit, OnModuleDestroy {
 
         const reduceRes = await fetch(`http://localhost:3002/admin/products/${item.product_id}/reduce`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': token || '' },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ quantity: item.quantity }),
         });
 
         if (!reduceRes.ok) {
-          const errorData = await reduceRes.json().catch(() => ({ message: 'No error message provided' }));
-          throw new BadRequestException(`Gagal memotong stok untuk produk ID ${item.product_id} di inventory. Response Service: ${errorData.message}`);
+          throw new BadRequestException(`Gagal memotong stok untuk produk ID ${item.product_id} di inventory.`);
         }
       }
 
