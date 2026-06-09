@@ -7,6 +7,7 @@ import {
   Param,
   ParseIntPipe,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { TransactionService } from './transaction.service';
 import { AddToCartDto } from './dto/add-to-cart.dto';
@@ -26,15 +27,18 @@ export class TransactionController {
     return this.transactionService.addToCart(addToCartDto);
   }
 
-  @Get(':userId')
+  @Get()
   @ApiOperation({ summary: 'Get active cart by User ID' })
-  getCart(@Param('userId', ParseIntPipe) userId: number) {
+  getCart(@Query ('userId', ParseIntPipe) userId: number) {
     return this.transactionService.getCart(userId);
   }
 
-  @Delete('item/:itemId')
+  @Delete('cart/:product_id/delete')
   @ApiOperation({ summary: 'Remove an item from cart by CartItem ID' })
-  removeItem(@Param('itemId', ParseIntPipe) itemId: number) {
-    return this.transactionService.removeCartItem(itemId);
+  deleteCartItem(
+    @Param('product_id', ParseIntPipe) ProductId: number,
+    @Query('user_id', ParseIntPipe)userId: number
+  ) {
+    return this.transactionService.deleteCartItem(userId, ProductId);
   }
 }
