@@ -242,7 +242,7 @@ export class TransactionService implements OnModuleInit, OnModuleDestroy {
       });
 
       return {
-        message: 'Checkout sukses dilakukan. Pesanan Anda berhasil diproses.',
+        message: 'Checkout sukses dilakukan. Pesanan Anda berhasil diproses. ',
         order_id: newOrder.id,
       };
     });
