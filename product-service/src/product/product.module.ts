@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ProductService } from './product.service';
 import { ProductController } from './product.controller';
+import { AdminProductController } from './admin-product.controller';
 import { JwtModule } from '@nestjs/jwt';
 @Module({
   imports: [
@@ -8,7 +9,7 @@ import { JwtModule } from '@nestjs/jwt';
       secret: process.env.JWT_SECRET || 'JomoroKoffeeProductService',
     })
   ],
-  controllers: [ProductController],
+  controllers: [ProductController, AdminProductController],
   providers: [ProductService],
   exports: [ProductService], // Diekspor agar bisa di-reuse jika dibutuhkan modul lain
 })

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TransactionService } from './transaction.service';
 import { TransactionController } from './transaction.controller';
+import { OrderController } from './order.controller';
 import { JwtModule } from '@nestjs/jwt';
 
 @Module({
@@ -9,7 +10,7 @@ import { JwtModule } from '@nestjs/jwt';
       secret: process.env.JWT_SECRET || 'JomoroKoffeeTransactionService',
     })
   ],
-  controllers: [TransactionController],
+  controllers: [TransactionController, OrderController],
   providers: [TransactionService],
 })
 export class TransactionModule {}

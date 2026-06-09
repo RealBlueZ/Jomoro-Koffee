@@ -1,37 +1,29 @@
-import { IsString, IsNotEmpty, IsNumber, IsOptional, Min, ValidationArguments, registerDecorator, ValidationOptions } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsInt,
+  Min,
+  Max,
+  MinLength,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-
-export function IsAtLeastThreeWords(validationOptions?: ValidationOptions) {
-  return function (object: Object, propertyName: string) {
-    registerDecorator({
-      name: 'isAtLeastThreeWords',
-      target: object.constructor,
-      propertyName: propertyName,
-      options: validationOptions,
-      validator: {
-        validate(value: any, args: ValidationArguments) {
-          if (typeof value !== 'string') return false;
-          // Pisahkan kata menggunakan spasi dan bersihkan spasi berlebih
-          const words = value.trim().split(/\s+/); 
-          return words.length >= 3;
-        },
-        defaultMessage(args: ValidationArguments) {
-          return 'Product name must contain at least 3 words.';
-        },
-      },
-    });
-  };
-}
+import { MinWords } from '../validators/min-words.validator';
 
 export class CreateProductDto {
-  @ApiProperty({ example: 'Espresso Romano' })
+  // Nama Produk: minimal harus terdiri dari 3 kata
+  @ApiProperty({ example: 'Kopi Espresso Romano' }) // contoh 3 kata agar lolos validasi
   @IsString()
   @IsNotEmpty()
+  @MinWords(3, { message: 'Nama produk minimal harus terdiri dari 3 kata' })
   name!: string;
 
-  @ApiProperty({ example: 'Kopi espresso dengan perasan lemon segar' })
+  // Deskripsi: minimal panjang 20 karakter
+  @ApiProperty({ example: 'Kopi espresso dengan perasan lemon segar khas Italia' })
   @IsString()
   @IsNotEmpty()
+  @MinLength(20, { message: 'Deskripsi minimal harus memiliki panjang 20 karakter' })
   description!: string;
 
   @ApiProperty({ example: 35000 })
@@ -39,9 +31,11 @@ export class CreateProductDto {
   @Min(0)
   price!: number;
 
-  @ApiProperty({ example: 50 })
-  @IsNumber()
-  @Min(0)
+  // Stok: angka bulat (integer) di antara 0 hingga 999
+  @ApiProperty({ example: 50, description: 'Angka bulat antara 0 hingga 999' })
+  @IsInt({ message: 'Stok harus berupa angka bulat (tidak boleh desimal)' })
+  @Min(0, { message: 'Stok tidak boleh kurang dari 0' })
+  @Max(999, { message: 'Stok tidak boleh lebih dari 999' })
   stock!: number;
 
   @ApiProperty({ example: null, required: false })
