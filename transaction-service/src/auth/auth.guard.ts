@@ -1,7 +1,10 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
+import * as dotenv from 'dotenv';
+import * as path from 'path';
 
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 @Injectable()
 export class AuthGuard implements CanActivate {
   constructor(private jwtService: JwtService) {}
@@ -16,13 +19,14 @@ export class AuthGuard implements CanActivate {
 
     try {
       // Pastikan secret key ini SAMA dengan yang ada di Auth Service Anda
+      const secretKey = process.env.JWT_SECRET || 'JomoroKoffeeService';
       const payload = await this.jwtService.verifyAsync(token, {
-        secret: process.env.JWT_SECRET || 'JomoroKoffeeService',
+        secret: secretKey,
       });
       
       // Simpan data user hasil decode (id, role, dll) ke dalam objek request
       request['user'] = payload;
-    } catch {
+    } catch (error) {
       throw new UnauthorizedException('Token tidak valid atau sudah kedaluwarsa.');
     }
     
